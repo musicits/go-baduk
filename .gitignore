@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+# 대국 기보는 각자 알아서 보관한다
+*.sgf
