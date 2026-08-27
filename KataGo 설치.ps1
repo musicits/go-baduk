@@ -6,12 +6,24 @@
 #   3. 받아진 .bin.gz 를 자동으로 찾아 제자리에 옮긴다
 #   4. 잘 되는지 확인한다
 #
-# 설치 위치는 %USERPROFILE%\.katago 이며, 바둑 프로그램이 여기를 자동으로 찾는다.
+# 기본 설치 위치는 이 폴더의 부모 아래 katago\ 다.
+# 즉 "D:\...\6. 바둑\KataGo 설치.bat" 을 실행하면 "D:\...\katago\" 에 깔린다.
+# 다른 곳에 깔려면 경로를 인자로 준다:
+#     KataGo 설치.bat "D:\내가\원하는\곳"
 
-param([string]$Mode = "opencl")
+param(
+    [string]$경로 = "",
+    [string]$Mode = "opencl"
+)
 
 $ErrorActionPreference = "Stop"
-$집 = Join-Path $env:USERPROFILE ".katago"
+
+if ($경로) {
+    $집 = $경로
+} else {
+    # 이 스크립트가 있는 폴더의 부모 아래 katago
+    $집 = Join-Path (Split-Path -Parent $PSScriptRoot) "katago"
+}
 
 function 알림($글) { Write-Host $글 -ForegroundColor Cyan }
 function 나쁨($글) { Write-Host $글 -ForegroundColor Red }
@@ -23,6 +35,7 @@ Write-Host ""
 알림 "============================================"
 Write-Host ""
 Write-Host "설치 위치: $집"
+Write-Host "  (다른 곳에 깔려면: KataGo 설치.bat \"D:\원하는\경로\")"
 Write-Host ""
 
 New-Item -ItemType Directory -Force -Path $집 | Out-Null
@@ -139,7 +152,7 @@ try {
     나쁨 "  실행에 실패했습니다: $_"
     if ($Mode -ne "cpu") {
         나쁨 "  그래픽카드 문제일 수 있습니다. CPU 판으로 다시 해보세요:"
-        나쁨 "     KataGo 설치.bat cpu"
+        나쁨 "     KataGo 설치.bat \"\" cpu"
     }
     Read-Host "Enter 를 누르면 닫힙니다"
     exit 1
@@ -148,6 +161,10 @@ try {
 Write-Host ""
 알림 "[4/4] 끝났습니다."
 Write-Host ""
+# 바둑 프로그램이 찾을 수 있도록 경로를 적어 둔다.
+$쪽지 = Join-Path $PSScriptRoot "katago경로.txt"
+Set-Content -Path $쪽지 -Value $집 -Encoding UTF8
+Write-Host "  경로를 katago경로.txt 에 적어 두었습니다."
 Write-Host "  이제 바둑 프로그램이 KataGo 를 자동으로 찾습니다."
 Write-Host ""
 Write-Host "  확인:   python baduk.py engines"

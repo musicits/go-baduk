@@ -230,3 +230,35 @@ def test_새_대국_만들기():
     assert game.board.size == 9
     assert isinstance(game.bot, BuiltinBot)
     game.close()
+
+
+def test_설치기가_남긴_경로를_먼저_본다(tmp_path, monkeypatch):
+    """katago경로.txt 에 적힌 폴더의 KataGo 를 찾아야 한다."""
+    from baduk import engine
+
+    깔린곳 = tmp_path / "katago"
+    깔린곳.mkdir()
+    (깔린곳 / "katago").write_text("#!/bin/sh\n")
+    (깔린곳 / "gtp_custom.cfg").write_text("")
+    (깔린곳 / "net.bin.gz").write_bytes(b"")
+
+    쪽지 = tmp_path / "katago경로.txt"
+    쪽지.write_text(str(깔린곳), encoding="utf-8")
+
+    monkeypatch.setattr(engine, "_PATH_NOTE", 쪽지)
+    monkeypatch.setattr(engine, "_SEARCH_DIRS", [])
+    monkeypatch.setenv("PATH", "")
+    monkeypatch.delenv("KATAGO_PATH", raising=False)
+    monkeypatch.delenv("KATAGO_CONFIG", raising=False)
+    monkeypatch.delenv("KATAGO_MODEL", raising=False)
+
+    찾음 = engine.find_katago()
+    assert 찾음 is not None
+    assert 찾음["실행"] == str(깔린곳 / "katago")
+    assert 찾음["신경망"] == str(깔린곳 / "net.bin.gz")
+
+
+def test_쪽지가_없어도_멀쩡하다(tmp_path, monkeypatch):
+    from baduk import engine
+    monkeypatch.setattr(engine, "_PATH_NOTE", tmp_path / "없는파일.txt")
+    assert engine._noted_dir() is None

@@ -4,3 +4,7 @@ __pycache__/
 .pytest_cache/
 # 대국 기보는 각자 알아서 보관한다
 *.sgf
+
+# KataGo 는 용량이 커서 커밋하지 않는다 (설치기가 받아온다)
+katago/
+katago경로.txt

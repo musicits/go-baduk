@@ -27,7 +27,24 @@ _KATAGO_ENV = "KATAGO_PATH"
 _CONFIG_ENV = "KATAGO_CONFIG"
 _MODEL_ENV = "KATAGO_MODEL"
 
+# 설치기가 남긴 쪽지. 여기 적힌 경로를 가장 먼저 본다.
+_PATH_NOTE = Path(__file__).resolve().parent.parent / "katago경로.txt"
+
+
+def _noted_dir():
+    """`katago경로.txt` 에 적힌 폴더를 읽는다. 없으면 None."""
+    try:
+        text = _PATH_NOTE.read_text(encoding="utf-8").strip()
+    except OSError:
+        return None
+    folder = Path(text)
+    return folder if folder.is_dir() else None
+
+
 _SEARCH_DIRS = [
+    # 프로젝트 옆에 깔았을 때 (설치기 기본값)
+    Path(__file__).resolve().parent.parent.parent / "katago",
+    Path(__file__).resolve().parent.parent / "katago",
     Path.home() / ".katago",
     Path.home() / "katago",
     Path.home() / "Downloads" / "katago",
@@ -246,8 +263,14 @@ def find_katago():
     binary = os.environ.get(_KATAGO_ENV) or shutil.which("katago")
     if binary and not Path(binary).exists() and not shutil.which(binary):
         binary = None
+
+    folders = list(_SEARCH_DIRS)
+    noted = _noted_dir()
+    if noted:
+        folders.insert(0, noted)
+
     if not binary:
-        for folder in _SEARCH_DIRS:
+        for folder in folders:
             for name in ("katago", "katago.exe"):
                 candidate = folder / name
                 if candidate.is_file():
@@ -260,10 +283,10 @@ def find_katago():
 
     home = Path(binary).resolve().parent
     config = os.environ.get(_CONFIG_ENV) or _first_match(
-        [home, *_SEARCH_DIRS], ("gtp_custom.cfg", "gtp_example.cfg", "*.cfg")
+        [home, *folders], ("gtp_custom.cfg", "gtp_example.cfg", "*.cfg")
     )
     model = os.environ.get(_MODEL_ENV) or _first_match(
-        [home, *_SEARCH_DIRS], ("*.bin.gz", "*.txt.gz", "*.bin")
+        [home, *folders], ("*.bin.gz", "*.txt.gz", "*.bin")
     )
     return {"실행": binary, "설정": config, "신경망": model}
 

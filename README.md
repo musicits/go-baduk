@@ -51,6 +51,13 @@ Windows·macOS 는 `♟_바둑 두기.bat` / `♟_바둑 두기.command` 를
 [KataGo](https://github.com/lightvector/KataGo) 는 공개된 오픈소스 엔진이고,
 지금 개인이 쓸 수 있는 것 중 가장 강한 축입니다.
 
+**Windows 는 `KataGo 설치.bat` 을 더블클릭하면 끝납니다.** 최신 판을 받아
+압축을 풀고, 신경망 받는 페이지를 열어준 뒤, 받아진 파일을 제자리에 옮겨
+줍니다. 기본 설치 위치는 이 폴더의 부모 아래 `katago\` 이고, 경로를 바꾸려면
+`KataGo 설치.bat "D:\원하는\경로"` 처럼 인자를 주면 됩니다.
+
+직접 하시려면:
+
 1. [릴리스 페이지](https://github.com/lightvector/KataGo/releases)에서
    내 컴퓨터에 맞는 파일을 받습니다.
    - Windows: `katago-*-opencl-windows-x64.zip` (그래픽카드 상관없이 무난)
@@ -58,7 +65,7 @@ Windows·macOS 는 `♟_바둑 두기.bat` / `♟_바둑 두기.command` 를
    - 리눅스: 배포판 패키지 또는 릴리스의 `linux-x64` 빌드
 2. [신경망 파일](https://katagotraining.org/networks/)을 하나 받습니다
    (`.bin.gz`). 최신 `b18` 계열이면 충분히 강합니다.
-3. 아래 셋 중 편한 방법으로 알려줍니다.
+3. 아래 넷 중 편한 방법으로 알려줍니다.
 
 ```bash
 # 방법 1 — PATH 에 katago 가 있으면 알아서 찾습니다
@@ -69,7 +76,10 @@ export KATAGO_PATH=/path/to/katago
 export KATAGO_MODEL=/path/to/model.bin.gz
 export KATAGO_CONFIG=/path/to/gtp.cfg     # 없으면 기본 설정을 찾아 씁니다
 
-# 방법 3 — ~/.katago/ 폴더에 실행 파일과 신경망을 함께 두기
+# 방법 3 — 이 폴더 옆의 katago/ 에 실행 파일과 신경망을 함께 두기
+#          (설치기가 쓰는 기본 위치다)
+
+# 방법 4 — 아무 데나 두고, 그 경로를 katago경로.txt 에 한 줄로 적기
 ```
 
 `python baduk.py engines` 로 제대로 잡혔는지 확인할 수 있습니다.
