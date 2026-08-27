@@ -1,40 +1,47 @@
 @echo off
-chcp 65001 > nul
+chcp 949 > nul
 setlocal
 cd /d "%~dp0"
-title ë°”ë‘‘
+title ¹ÙµÏ
 
 echo ============================================
-echo   ë°”ë‘‘
+echo   ¹ÙµÏ
 echo ============================================
 echo.
 
-rem ë°”ë‘‘ì€ íŒŒì´ì¬ ê¸°ë³¸ ê¸°ëŠ¥ë§Œ ì“°ë¯€ë¡œ ë”°ë¡œ ì„¤ì¹˜í•  ê²Œ ì—†ë‹¤.
-if exist ".venv\Scripts\python.exe" (
-    set "PY=.venv\Scripts\python.exe"
-) else (
-    set "PY=python"
+rem ÆÄÀÌ½ãÀ» Ã£´Â´Ù. py ·±Ã³¸¦ °¡Àå ¸ÕÀú º»´Ù (°¡Àå È®½ÇÇÏ´Ù).
+set "PY="
+py -3 --version > nul 2>&1 && set "PY=py -3"
+if not defined PY python --version > nul 2>&1 && set "PY=python"
+if not defined PY python3 --version > nul 2>&1 && set "PY=python3"
+
+if not defined PY (
+    echo [¿À·ù] ÆÄÀÌ½ãÀ» Ã£À» ¼ö ¾ø½À´Ï´Ù.
+    echo.
+    echo   1. https://www.python.org/downloads/ ¿¡¼­ ³»·Á¹ÞÀ¸¼¼¿ä.
+    echo   2. ¼³Ä¡ Ã¹ È­¸é¿¡¼­ "Add python.exe to PATH" ¸¦ ²À Ã¼Å©ÇÏ¼¼¿ä.
+    echo   3. ¼³Ä¡ÇÑ µÚ ÀÌ ÆÄÀÏÀ» ´Ù½Ã ½ÇÇàÇÏ¼¼¿ä.
+    echo.
+    echo   ¼³Ä¡°¡ ¹ø°Å·Î¿ì¸é À¥¿¡¼­ ¹Ù·Î µÎ¼Åµµ µË´Ï´Ù.
+    echo   https://musicits.github.io/go-baduk/
+    echo.
+    pause
+    exit /b 1
 )
 
-where %PY% > nul 2>&1
+echo ÆÄÀÌ½ãÀ» Ã£¾Ò½À´Ï´Ù.
+%PY% --version
+echo.
+echo ¹ÙµÏÆÇÀ» ºê¶ó¿ìÀú¿¡ ¿±´Ï´Ù.
+echo KataGo °¡ ¼³Ä¡µÇ¾î ÀÖÀ¸¸é KataGo °¡, ¾øÀ¸¸é ³»Àå º¿ÀÌ »ó´ë°¡ µË´Ï´Ù.
+echo.
+echo Ã¢À» ´ÝÀ¸·Á¸é ÀÌ Ã¢¿¡¼­ Ctrl+C ¸¦ ´©¸£¼¼¿ä.
+echo.
+
+%PY% baduk.py web
+
+echo.
 if errorlevel 1 (
-    if not exist ".venv\Scripts\python.exe" (
-        echo [ì˜¤ë¥˜] íŒŒì´ì¬ì„ ì°¾ì„ ìˆ˜ ì—†ìŠµë‹ˆë‹¤.
-        echo        https://www.python.org ì—ì„œ íŒŒì´ì¬ 3.9 ì´ìƒì„ ì„¤ì¹˜í•˜ì„¸ìš”.
-        echo.
-        pause
-        exit /b 1
-    )
+    echo [¿À·ù] ½ÇÇàÇÏÁö ¸øÇß½À´Ï´Ù. À§ ³»¿ëÀ» ±×´ë·Î ¾Ë·ÁÁÖ¼¼¿ä.
 )
-
-echo ë°”ë‘‘íŒì„ ë¸Œë¼ìš°ì €ì— ì—½ë‹ˆë‹¤.
-echo KataGo ê°€ ì„¤ì¹˜ë˜ì–´ ìžˆìœ¼ë©´ KataGo ê°€, ì—†ìœ¼ë©´ ë‚´ìž¥ ë´‡ì´ ìƒëŒ€ê°€ ë©ë‹ˆë‹¤.
-echo (ë‚´ìž¥ ë´‡ì€ ì•„ì£¼ ì•½í•©ë‹ˆë‹¤. ì„¤ì¹˜ ë°©ë²•ì€ README.md ë¥¼ ë³´ì„¸ìš”.)
-echo.
-echo ì°½ì„ ë‹«ìœ¼ë ¤ë©´ ì´ ì°½ì—ì„œ Ctrl+C ë¥¼ ëˆ„ë¥´ì„¸ìš”.
-echo.
-
-"%PY%" baduk.py web
-
-echo.
 pause

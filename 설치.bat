@@ -1,48 +1,46 @@
 @echo off
-chcp 65001 > nul
+chcp 949 > nul
 setlocal
 cd /d "%~dp0"
-title ë°”ë‘‘ - ì„¤ì¹˜
+title ¹ÙµÏ - ³»·Á¹Ş±â
 
 echo ============================================
-echo   ë°”ë‘‘ ë‚´ë ¤ë°›ê¸°
+echo   ¹ÙµÏ ³»·Á¹Ş±â
 echo ============================================
 echo.
-echo ì´ íŒŒì¼ì´ ìˆëŠ” í´ë” ì•„ë˜ì— "6. ë°”ë‘‘" ì„ ë§Œë“¤ê³  ë°›ì•„ì˜µë‹ˆë‹¤.
+echo ÀÌ ÆÄÀÏÀÌ ÀÖ´Â Æú´õ ¾Æ·¡¿¡ "6. ¹ÙµÏ" À» ¸¸µì´Ï´Ù.
 echo.
 
 where git > nul 2>&1
 if errorlevel 1 (
-    echo [ì˜¤ë¥˜] git ì´ ì—†ìŠµë‹ˆë‹¤.
-    echo        https://git-scm.com/download/win ì—ì„œ ì„¤ì¹˜í•œ ë’¤ ë‹¤ì‹œ ì‹¤í–‰í•˜ì„¸ìš”.
+    echo [¿À·ù] git ÀÌ ¾ø½À´Ï´Ù.
     echo.
-    echo        ë˜ëŠ” ì•„ë˜ ì£¼ì†Œì—ì„œ ZIP ìœ¼ë¡œ ë°›ì•„ ì••ì¶•ì„ í‘¸ì…”ë„ ë©ë‹ˆë‹¤.
-    echo        https://github.com/musicits/go-baduk/archive/refs/heads/main.zip
+    echo   https://git-scm.com/download/win ¿¡¼­ ¼³Ä¡ÇÏ°Å³ª,
+    echo   ¾Æ·¡ ÁÖ¼Ò¿¡¼­ ZIP À¸·Î ¹Ş¾Æ ¾ĞÃàÀ» Çª¼Åµµ µË´Ï´Ù.
+    echo   https://github.com/musicits/go-baduk/archive/refs/heads/main.zip
     echo.
     pause
     exit /b 1
 )
 
-if exist "6. ë°”ë‘‘\.git" (
-    echo ì´ë¯¸ ë°›ì•„ë‘” ê²ƒì´ ìˆì–´ ìµœì‹ ìœ¼ë¡œë§Œ ê°±ì‹ í•©ë‹ˆë‹¤.
-    cd "6. ë°”ë‘‘"
+if exist "6. ¹ÙµÏ\.git" (
+    echo ÀÌ¹Ì ¹Ş¾ÆµĞ °ÍÀÌ ÀÖ¾î ÃÖ½ÅÀ¸·Î °»½Å¸¸ ÇÕ´Ï´Ù.
+    pushd "6. ¹ÙµÏ"
     git pull
-    cd ..
+    popd
 ) else (
-    git clone https://github.com/musicits/go-baduk.git "6. ë°”ë‘‘"
+    git clone https://github.com/musicits/go-baduk.git "6. ¹ÙµÏ"
 )
 
 if errorlevel 1 (
     echo.
-    echo [ì˜¤ë¥˜] ë°›ì•„ì˜¤ì§€ ëª»í–ˆìŠµë‹ˆë‹¤. ì¸í„°ë„· ì—°ê²°ì„ í™•ì¸í•˜ì„¸ìš”.
+    echo [¿À·ù] ¹Ş¾Æ¿ÀÁö ¸øÇß½À´Ï´Ù. ÀÎÅÍ³İ ¿¬°áÀ» È®ÀÎÇÏ¼¼¿ä.
     pause
     exit /b 1
 )
 
 echo.
-echo ëë‚¬ìŠµë‹ˆë‹¤. "6. ë°”ë‘‘" í´ë”ì˜ ë‹¤ìŒ íŒŒì¼ì„ ì“°ì‹œë©´ ë©ë‹ˆë‹¤.
-echo.
-echo   ë°”ë‘‘ ë‘ê¸°        : 6. ë°”ë‘‘\â™Ÿ_ë°”ë‘‘ ë‘ê¸°.bat
-echo   ì„¤ì¹˜ ì—†ì´ ì›¹ìœ¼ë¡œ : https://musicits.github.io/go-baduk/
+echo ³¡³µ½À´Ï´Ù. "6. ¹ÙµÏ" Æú´õ ¾ÈÀÇ ¹ÙµÏ µÎ±â ÆÄÀÏÀ» ½ÇÇàÇÏ¼¼¿ä.
+echo ¼³Ä¡ ¾øÀÌ À¥¿¡¼­ µÎ½Ã·Á¸é: https://musicits.github.io/go-baduk/
 echo.
 pause

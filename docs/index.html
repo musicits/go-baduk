@@ -112,7 +112,12 @@
       <select id="규칙"><option>중국</option><option>한국</option></select>
     </label>
     <label id="시간줄">한 수 생각
-      <input type="number" id="생각시간" value="5" min="1" max="60" step="1">
+      <select id="생각시간">
+        <option value="1">1초 (빠름)</option>
+        <option value="3" selected>3초 (보통)</option>
+        <option value="8">8초 (강함)</option>
+        <option value="15">15초 (아주 강함)</option>
+      </select>
     </label>
   </details>
 
@@ -170,33 +175,95 @@ class 서버엔진 {
 class 로컬엔진 {
   constructor() {
     this.로컬 = true;
-    this.봇 = new 내장봇(Date.now() & 0xffff);
-    this.새대국({ 크기: 9, 규칙: "중국", 사람: "흑", 접바둑: 0 });
+    this.생각시간 = 3000;
+    this._표번호 = 0;
+    this.분석결과 = [];
+    // 탐색은 워커에서 돌린다. 그래야 생각하는 동안 화면이 안 멈춘다.
+    try {
+      this.워커 = new Worker("bot.js");
+      this.이름 = "탐색 봇";
+      this.실력 = "MCTS · 수를 읽습니다";
+    } catch (오류) {
+      this.워커 = null;                    // file:// 로 열었을 때 등
+      this.대체봇 = new 내장봇(1234);
+      this.이름 = "내장 봇";
+      this.실력 = "아주 약함 (탐색 불가)";
+    }
+    this._판만들기({ 크기: 9, 규칙: "중국", 사람: "흑", 접바둑: 0 });
   }
 
-  async 새대국(옵션 = {}) {
+  _판만들기(옵션) {
     const 크기 = Number(옵션.크기 || 9);
     const 접 = Number(옵션.접바둑 || 0);
-    const 덤 = 옵션.덤 != null ? Number(옵션.덤)
-             : (접 >= 2 ? 0.5 : (크기 >= 19 ? 6.5 : 5.5));
-    this.판 = new 바둑판(크기, 덤);
+    this.판 = new 바둑판(크기, 옵션.덤 != null ? Number(옵션.덤)
+                        : (접 >= 2 ? 0.5 : (크기 >= 19 ? 6.5 : 5.5)));
     this.규칙 = 옵션.규칙 || "중국";
     this.사람 = (옵션.사람 || "흑") === "백" ? 백 : 흑;
     this.끝남 = false;
     this.결과 = null;
-    this.봇 = new 내장봇((Date.now() ^ (Math.random() * 1e9)) >>> 0);
+    this.분석결과 = [];
     if (접 >= 2) this.판.치석놓기(접);
-    if (this.판.차례 !== this.사람) this._봇수();
+  }
+
+  /* 워커에게 생각을 시킨다. */
+  _생각(시간) {
+    if (!this.워커) {                       // 워커를 못 쓰면 옛 봇으로 때운다
+      const 수 = this.대체봇.둘곳(this.판, this.판.차례);
+      return Promise.resolve({
+        수: 수 === null ? -1 : this.판.번호(수), 승률: 0.5, 후보들: [],
+      });
+    }
+    return new Promise((맞음, 틀림) => {
+      const 표 = ++this._표번호;
+      const 시간재기 = setTimeout(() => {
+        this.워커.removeEventListener("message", 받기);
+        틀림(new Error("봇이 답하지 않습니다"));
+      }, 시간 + 20000);
+
+      const 받기 = 사건 => {
+        if (사건.data.표 !== 표) return;
+        clearTimeout(시간재기);
+        this.워커.removeEventListener("message", 받기);
+        사건.data.성공 ? 맞음(사건.data) : 틀림(new Error(사건.data.오류));
+      };
+      this.워커.addEventListener("message", 받기);
+      this.워커.postMessage({
+        돌: Array.from(this.판.돌), 크기: this.판.크기, 색: this.판.차례,
+        덤: this.판.덤, 패자리: this.판.패 == null ? -1 : this.판.패,
+        시간, 씨앗: (Math.random() * 1e9) | 0, 표,
+      });
+    });
+  }
+
+  async _봇수() {
+    const 색 = this.판.차례;
+    const 답 = await this._생각(this.생각시간);
+    let 수 = 답.수 < 0 ? null : this.판.자리(답.수);
+
+    // 탐색기는 동형반복까지는 보지 않는다. 거절당하면 패스로 넘긴다.
+    if (수 !== null && !this.판.합법인가(수, 색)) 수 = null;
+    this.판.두기(수, 색);
+
+    this.분석결과 = (답.후보들 || []).map(후 => ({
+      수: this.판.좌표(this.판.자리(후.수)),
+      승률: 후.승률, 예상집: null, 방문수: 후.방문수, 예상진행: [],
+    }));
+    this._끝검사();
+  }
+
+  async 새대국(옵션 = {}) {
+    this.생각시간 = Math.round((Number(옵션.생각시간) || 3) * 1000);
+    this._판만들기(옵션);
+    if (this.판.차례 !== this.사람) await this._봇수();
     return this._상태();
   }
 
   async 두기(행, 열) {
     if (this.끝남) throw new 위법수("이미 끝난 대국입니다");
-    const 색 = this.판.차례;
-    this.판.두기([행, 열], 색);        // 위법하면 여기서 예외가 난다
-    this.봇.본다(색, [행, 열]);
+    this.판.두기([행, 열], this.판.차례);   // 위법하면 여기서 예외가 난다
+    this.분석결과 = [];
     this._끝검사();
-    if (!this.끝남) this._봇수();
+    if (!this.끝남) await this._봇수();
     return this._상태();
   }
 
@@ -204,14 +271,14 @@ class 로컬엔진 {
     if (this.끝남) return this._상태();
     this.판.두기(null, this.판.차례);
     this._끝검사();
-    if (!this.끝남) this._봇수();
+    if (!this.끝남) await this._봇수();
     return this._상태();
   }
 
   async 무르기() {
     let 몇 = 0;
     for (let i = 0; i < 2; i++) if (this.판.되돌리기()) 몇++;
-    if (몇) { this.끝남 = false; this.결과 = null; }
+    if (몇) { this.끝남 = false; this.결과 = null; this.분석결과 = []; }
     return this._상태();
   }
 
@@ -221,7 +288,16 @@ class 로컬엔진 {
     return this._상태();
   }
 
-  async 분석() { return this._상태(); }   // 로컬 봇은 승률을 내지 못한다
+  /* 지금 국면을 탐색해서 추천수를 보여준다 (두지는 않는다). */
+  async 분석() {
+    if (this.끝남) return this._상태();
+    const 답 = await this._생각(this.생각시간);
+    this.분석결과 = (답.후보들 || []).map(후 => ({
+      수: this.판.좌표(this.판.자리(후.수)),
+      승률: 후.승률, 예상집: null, 방문수: 후.방문수, 예상진행: [],
+    }));
+    return this._상태();
+  }
 
   async 계가() {
     const 상 = this._상태();
@@ -233,13 +309,14 @@ class 로컬엔진 {
     this.판 = sgf읽기(sgf);
     this.끝남 = false;
     this.결과 = null;
+    this.분석결과 = [];
     return this._상태();
   }
 
   기보저장() {
     const 글 = sgf만들기(this.판, {
-      흑이름: this.사람 === 흑 ? "사람" : this.봇.이름,
-      백이름: this.사람 === 백 ? "사람" : this.봇.이름,
+      흑이름: this.사람 === 흑 ? "사람" : this.이름,
+      백이름: this.사람 === 백 ? "사람" : this.이름,
       결과: this.결과,
     });
     const 주소 = URL.createObjectURL(new Blob([글], { type: "application/x-go-sgf" }));
@@ -253,13 +330,6 @@ class 로컬엔진 {
   }
 
   async 상태() { return this._상태(); }
-
-  _봇수() {
-    const 색 = this.판.차례;
-    const 수 = this.봇.둘곳(this.판, 색);
-    this.판.두기(수, 색);
-    this._끝검사();
-  }
 
   _끝검사() {
     if (this.판.끝났나()) {
@@ -279,9 +349,9 @@ class 로컬엔진 {
       수순: p.수순.length,
       마지막수: 마지막, 패: p.패 === null ? null : p.자리(p.패),
       끝남: this.끝남, 결과: this.결과, 사람: this.사람,
-      엔진이름: this.봇.이름, 엔진실력: this.봇.실력,
-      분석: [], 규칙: this.규칙,
-      엔진현황: { 로컬: true },
+      엔진이름: this.이름, 엔진실력: this.실력,
+      분석: this.분석결과, 규칙: this.규칙,
+      엔진현황: { 로컬: true, 워커: !!this.워커 },
     };
   }
 }
@@ -432,12 +502,18 @@ function 갱신() {
   const 현황 = 상태.엔진현황 || {};
   const 칸 = document.getElementById("엔진칸");
   if (엔진 && 엔진.로컬) {
-    칸.innerHTML = `이 페이지는 <b>브라우저 안에서만</b> 돌아갑니다.
-      규칙과 봇이 전부 자바스크립트로 들어 있어 서버가 필요 없습니다.<br><br>
-      상대는 <b>내장 봇</b>이라 아주 약합니다. KataGo 와 두시려면
-      <a href="https://github.com/musicits/go-baduk">내려받아</a>
-      <code>python baduk.py</code> 로 실행하세요.
-      KataGo 는 네이티브 프로그램이라 브라우저에서는 못 돕니다.`;
+    칸.innerHTML = (현황.워커
+      ? `상대는 <b>탐색 봇</b>입니다. 수를 실제로 읽어서 둡니다
+         (몬테카를로 탐색). <b>9로·13로</b>에서 제 실력이 나오고,
+         19로는 판이 넓어 같은 시간에 훨씬 얕게 봅니다.<br>
+         약하면 "한 수 생각" 을 늘려 보세요.<br><br>`
+      : `워커를 쓸 수 없어 약한 봇으로 둡니다.
+         (파일을 직접 연 경우입니다. 웹 주소로 여세요.)<br><br>`)
+      + `이 페이지는 브라우저 안에서만 돌아갑니다. 서버가 필요 없습니다.
+         더 센 상대를 원하시면
+         <a href="https://github.com/musicits/go-baduk">내려받아</a>
+         KataGo 를 붙이세요. KataGo 는 네이티브 프로그램이라
+         브라우저에서는 못 돕니다.`;
   } else {
     칸.innerHTML = (현황.KataGo && 현황.KataGo.설치됨
       ? `KataGo 사용 중<br>${현황.KataGo.신경망 || "기본 신경망"}`
@@ -462,11 +538,7 @@ function 갱신() {
 
 document.getElementById("패스").onclick = () => 실행(() => 엔진.패스());
 document.getElementById("무르기").onclick = () => 실행(() => 엔진.무르기());
-document.getElementById("분석").onclick = () => 실행(async () => {
-  const 결과 = await 엔진.분석();
-  if (엔진.로컬) 알림("내장 봇은 승률을 내지 못합니다 (KataGo 필요)");
-  return 결과;
-});
+document.getElementById("분석").onclick = () => 실행(() => 엔진.분석());
 document.getElementById("돌던지기").onclick = () => {
   if (confirm("돌을 던집니다. 계속할까요?")) 실행(() => 엔진.돌던지기());
 };
@@ -530,8 +602,7 @@ function 서버가있을만한가() {
   } catch (e) {
     엔진 = new 로컬엔진();
     상태 = await 엔진.상태();
-    document.getElementById("엔진줄").hidden = true;   // 로컬에선 고를 게 없다
-    document.getElementById("시간줄").hidden = true;
+    document.getElementById("엔진줄").hidden = true;   // 로컬에선 상대를 고를 게 없다
   }
   후보수 = 상태.분석 || [];
   그리기();
