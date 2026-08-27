@@ -19,7 +19,7 @@ class Game:
     :param handicap: 접바둑 치석 수 (0 이면 맞바둑).
     :param human: 사람이 잡을 색. 둘 다 엔진이면 None.
     :param bot: 상대 `Player`. None 이면 내장 봇.
-    :param rules: 계가 방식 (``"중국"`` 또는 ``"일본"``).
+    :param rules: 계가 방식 (``"중국"`` 또는 ``"한국"``).
     """
 
     def __init__(self, size: int = 19, komi: float = None, handicap: int = 0,

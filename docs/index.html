@@ -1,0 +1,542 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>바둑</title>
+<meta name="description" content="브라우저에서 바로 두는 바둑. 설치가 필요 없습니다.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23dcb35c'/%3E%3Ccircle cx='12' cy='12' r='7' fill='%23141010'/%3E%3Ccircle cx='21' cy='21' r='7' fill='%23f7f4ec'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --판: #dcb35c; --글자: #2b2118; --바탕: #f4efe6;
+    --카드: #fffdf8; --테두리: #e0d6c4; --강조: #7b4b2a; --흐림: #857a68;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --바탕:#17140f; --카드:#221d16; --글자:#efe7d8;
+            --테두리:#3a3227; --흐림:#a2977f; --강조:#c88a5c; }
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }   /* display 를 준 요소도 확실히 숨긴다 */
+  body {
+    margin: 0; padding: 20px; background: var(--바탕); color: var(--글자);
+    font-family: -apple-system, "Apple SD Gothic Neo", "Malgun Gothic",
+                 "Noto Sans KR", sans-serif;
+    display: flex; gap: 20px; flex-wrap: wrap; justify-content: center;
+    align-items: flex-start;
+  }
+  h1 { font-size: 20px; margin: 0 0 12px; letter-spacing: 2px; }
+  #판 { border-radius: 6px; box-shadow: 0 6px 24px rgba(0,0,0,.25); cursor: pointer;
+        touch-action: manipulation; max-width: 100%; display: block; }
+  aside { width: 300px; max-width: 100%; display: flex; flex-direction: column; gap: 12px; }
+  .카드 { background: var(--카드); border: 1px solid var(--테두리);
+          border-radius: 10px; padding: 14px; }
+  .줄 { display: flex; justify-content: space-between; align-items: center;
+        padding: 4px 0; font-size: 14px; gap: 8px; }
+  .흐림 { color: var(--흐림); font-size: 12px; line-height: 1.6; }
+  button { font: inherit; font-size: 14px; padding: 8px 10px; border-radius: 8px;
+           border: 1px solid var(--테두리); background: var(--카드);
+           color: var(--글자); cursor: pointer; }
+  button:hover:not(:disabled) { border-color: var(--강조); }
+  button:disabled { opacity: .45; cursor: default; }
+  button.주 { background: var(--강조); color: #fff; border-color: var(--강조); }
+  .단추들 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  label { display: flex; justify-content: space-between; align-items: center;
+          gap: 8px; font-size: 13px; padding: 5px 0; }
+  select, input[type=number] { font: inherit; font-size: 13px; padding: 5px;
+          border-radius: 6px; border: 1px solid var(--테두리);
+          background: var(--바탕); color: var(--글자); min-width: 110px; }
+  .돌표시 { display: inline-block; width: 13px; height: 13px; border-radius: 50%;
+            vertical-align: -2px; margin-right: 6px; border: 1px solid #6b5a3e; }
+  .흑돌 { background: #14100c; } .백돌 { background: #f7f4ec; }
+  #알림 { font-size: 13px; min-height: 20px; color: var(--강조); font-weight: 600; }
+  #막대 { height: 8px; border-radius: 4px; overflow: hidden;
+          background: #f7f4ec; border: 1px solid var(--테두리); }
+  #막대 i { display: block; background: #14100c; height: 100%; transition: width .3s; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  th, td { text-align: right; padding: 3px 2px; }
+  th:first-child, td:first-child { text-align: left; font-weight: 600; }
+  thead th { color: var(--흐림); font-weight: 500; border-bottom: 1px solid var(--테두리); }
+  details summary { cursor: pointer; font-size: 13px; }
+  a { color: var(--강조); }
+</style>
+</head>
+<body>
+
+<main>
+  <h1>바 둑</h1>
+  <canvas id="판" width="640" height="640"></canvas>
+</main>
+
+<aside>
+  <div class="카드">
+    <div id="알림">준비 중…</div>
+    <div id="막대"><i style="width:50%"></i></div>
+    <div class="줄"><span><i class="돌표시 흑돌"></i>흑</span><b id="흑정보">–</b></div>
+    <div class="줄"><span><i class="돌표시 백돌"></i>백</span><b id="백정보">–</b></div>
+    <div class="줄"><span>수순</span><b id="수순">0</b></div>
+    <div class="줄"><span>덤 · 규칙</span><b id="덤">–</b></div>
+  </div>
+
+  <div class="카드 단추들">
+    <button id="패스">패스</button>
+    <button id="무르기">무르기</button>
+    <button id="분석">분석</button>
+    <button id="계가">계가</button>
+    <button id="기보저장">기보 저장</button>
+    <button id="기보열기">기보 열기</button>
+    <button id="돌던지기">돌 던지기</button>
+    <button id="새대국" class="주">새 대국</button>
+    <input type="file" id="파일" accept=".sgf" hidden>
+  </div>
+
+  <details class="카드" id="설정칸" open>
+    <summary>대국 설정</summary>
+    <label>판 크기
+      <select id="크기"><option>19</option><option>13</option><option selected>9</option></select>
+    </label>
+    <label id="엔진줄">상대
+      <select id="엔진">
+        <option value="auto">자동 (KataGo 있으면 사용)</option>
+        <option value="katago">KataGo</option>
+        <option value="내장">내장 봇 (아주 약함)</option>
+      </select>
+    </label>
+    <label>내 색
+      <select id="내색"><option value="흑">흑 (먼저)</option><option value="백">백</option></select>
+    </label>
+    <label>접바둑 <select id="접바둑">
+      <option value="0">없음</option><option>2</option><option>3</option>
+      <option>4</option><option>5</option><option>6</option>
+      <option>7</option><option>8</option><option>9</option></select></label>
+    <label>계가 방식
+      <select id="규칙"><option>중국</option><option>한국</option></select>
+    </label>
+    <label id="시간줄">한 수 생각
+      <input type="number" id="생각시간" value="5" min="1" max="60" step="1">
+    </label>
+  </details>
+
+  <div class="카드" id="분석칸" hidden>
+    <div class="줄"><span>승률 (흑)</span><b id="승률">–</b></div>
+    <table>
+      <thead><tr><th>후보</th><th>승률</th><th>예상집</th><th>방문</th></tr></thead>
+      <tbody id="후보"></tbody>
+    </table>
+  </div>
+
+  <div class="카드 흐림" id="엔진칸"></div>
+</aside>
+
+<script src="rules.js"></script>
+<script>
+"use strict";
+const { 빈칸, 흑, 백, 바둑판, 내장봇, 위법수, 상대, 화점자리, sgf만들기, sgf읽기, 글자표 } = window.바둑;
+
+const 판 = document.getElementById("판");
+const 그림 = 판.getContext("2d");
+let 상태 = null, 크기 = 9, 생각중 = false, 후보수 = [], 엔진 = null;
+
+/* ------------------------------------------------------------------
+ * 엔진 두 가지.
+ *  - 서버엔진: 파이썬 서버가 뒤에 있을 때. KataGo 를 쓸 수 있다.
+ *  - 로컬엔진: 정적 호스팅(GitHub Pages)에서 브라우저 혼자 돌 때.
+ * 화면 쪽 코드는 둘 중 무엇인지 몰라도 되게 같은 모양으로 맞췄다.
+ * ------------------------------------------------------------------ */
+class 서버엔진 {
+  constructor() { this.로컬 = false; }
+
+  async _보내기(길, 몸통) {
+    const 설정 = 몸통 === undefined ? {}
+      : { method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(몸통) };
+    const 응답 = await fetch(길, 설정);
+    const 자료 = await 응답.json();
+    if (!응답.ok) throw new Error(자료.오류 || "요청이 실패했습니다");
+    return 자료;
+  }
+
+  상태() { return this._보내기("/api/state"); }
+  새대국(옵션) { return this._보내기("/api/new", 옵션); }
+  두기(행, 열) { return this._보내기("/api/play", { 행, 열 }); }
+  패스() { return this._보내기("/api/pass", {}); }
+  무르기() { return this._보내기("/api/undo", { 수: 2 }); }
+  돌던지기() { return this._보내기("/api/resign", {}); }
+  분석() { return this._보내기("/api/analyze", {}); }
+  계가() { return this._보내기("/api/score", {}); }
+  불러오기(sgf) { return this._보내기("/api/load", { sgf }); }
+  기보저장() { location.href = "/api/sgf"; }
+}
+
+class 로컬엔진 {
+  constructor() {
+    this.로컬 = true;
+    this.봇 = new 내장봇(Date.now() & 0xffff);
+    this.새대국({ 크기: 9, 규칙: "중국", 사람: "흑", 접바둑: 0 });
+  }
+
+  async 새대국(옵션 = {}) {
+    const 크기 = Number(옵션.크기 || 9);
+    const 접 = Number(옵션.접바둑 || 0);
+    const 덤 = 옵션.덤 != null ? Number(옵션.덤)
+             : (접 >= 2 ? 0.5 : (크기 >= 19 ? 6.5 : 5.5));
+    this.판 = new 바둑판(크기, 덤);
+    this.규칙 = 옵션.규칙 || "중국";
+    this.사람 = (옵션.사람 || "흑") === "백" ? 백 : 흑;
+    this.끝남 = false;
+    this.결과 = null;
+    this.봇 = new 내장봇((Date.now() ^ (Math.random() * 1e9)) >>> 0);
+    if (접 >= 2) this.판.치석놓기(접);
+    if (this.판.차례 !== this.사람) this._봇수();
+    return this._상태();
+  }
+
+  async 두기(행, 열) {
+    if (this.끝남) throw new 위법수("이미 끝난 대국입니다");
+    const 색 = this.판.차례;
+    this.판.두기([행, 열], 색);        // 위법하면 여기서 예외가 난다
+    this.봇.본다(색, [행, 열]);
+    this._끝검사();
+    if (!this.끝남) this._봇수();
+    return this._상태();
+  }
+
+  async 패스() {
+    if (this.끝남) return this._상태();
+    this.판.두기(null, this.판.차례);
+    this._끝검사();
+    if (!this.끝남) this._봇수();
+    return this._상태();
+  }
+
+  async 무르기() {
+    let 몇 = 0;
+    for (let i = 0; i < 2; i++) if (this.판.되돌리기()) 몇++;
+    if (몇) { this.끝남 = false; this.결과 = null; }
+    return this._상태();
+  }
+
+  async 돌던지기() {
+    this.끝남 = true;
+    this.결과 = `${this.사람 === 흑 ? "백" : "흑"} 불계승`;
+    return this._상태();
+  }
+
+  async 분석() { return this._상태(); }   // 로컬 봇은 승률을 내지 못한다
+
+  async 계가() {
+    const 상 = this._상태();
+    상.집계산 = this.판.계가([], this.규칙);
+    return 상;
+  }
+
+  async 불러오기(sgf) {
+    this.판 = sgf읽기(sgf);
+    this.끝남 = false;
+    this.결과 = null;
+    return this._상태();
+  }
+
+  기보저장() {
+    const 글 = sgf만들기(this.판, {
+      흑이름: this.사람 === 흑 ? "사람" : this.봇.이름,
+      백이름: this.사람 === 백 ? "사람" : this.봇.이름,
+      결과: this.결과,
+    });
+    const 주소 = URL.createObjectURL(new Blob([글], { type: "application/x-go-sgf" }));
+    const 고리 = document.createElement("a");
+    고리.href = 주소;
+    고리.download = "대국.sgf";
+    document.body.appendChild(고리);
+    고리.click();
+    고리.remove();
+    setTimeout(() => URL.revokeObjectURL(주소), 1000);
+  }
+
+  async 상태() { return this._상태(); }
+
+  _봇수() {
+    const 색 = this.판.차례;
+    const 수 = this.봇.둘곳(this.판, 색);
+    this.판.두기(수, 색);
+    this._끝검사();
+  }
+
+  _끝검사() {
+    if (this.판.끝났나()) {
+      this.끝남 = true;
+      this.결과 = this.판.계가([], this.규칙).결과;
+    }
+  }
+
+  _상태() {
+    const p = this.판;
+    let 마지막 = null;
+    for (let i = p.수순.length - 1; i >= 0; i--)
+      if (p.수순[i][1]) { 마지막 = p.수순[i][1]; break; }
+    return {
+      크기: p.크기, 돌: Array.from(p.돌), 차례: p.차례, 덤: p.덤,
+      따낸돌: { 흑: p.따낸돌[흑], 백: p.따낸돌[백] },
+      수순: p.수순.length,
+      마지막수: 마지막, 패: p.패 === null ? null : p.자리(p.패),
+      끝남: this.끝남, 결과: this.결과, 사람: this.사람,
+      엔진이름: this.봇.이름, 엔진실력: this.봇.실력,
+      분석: [], 규칙: this.규칙,
+      엔진현황: { 로컬: true },
+    };
+  }
+}
+
+/* ------------------------------------------------------------------ 통신 */
+async function 실행(하기) {
+  if (생각중) return;
+  생각중 = true;
+  알림("두는 중…");
+  잠금(true);
+  try {
+    await new Promise(r => setTimeout(r, 0));   // 화면을 먼저 갱신시킨다
+    const 결과 = await 하기();
+    if (결과) { 상태 = 결과; 후보수 = 상태.분석 || []; }
+    그리기();
+    갱신();
+    return 결과;
+  } catch (오류) {
+    알림(오류.message || String(오류));
+  } finally {
+    생각중 = false;
+    잠금(false);
+  }
+}
+
+function 잠금(값) { document.querySelectorAll("button").forEach(b => b.disabled = 값); }
+
+/* ------------------------------------------------------------------ 그리기 */
+function 여백() { return 판.width / (크기 + 1); }
+
+function 그리기() {
+  const 폭 = 판.width, 칸 = 여백();
+  그림.fillStyle = "#dcb35c";
+  그림.fillRect(0, 0, 폭, 폭);
+
+  그림.strokeStyle = "rgba(74,55,34,.85)";
+  그림.lineWidth = 1;
+  그림.font = `${Math.max(9, 칸 * 0.34)}px sans-serif`;
+  그림.textAlign = "center";
+  그림.textBaseline = "middle";
+
+  for (let i = 0; i < 크기; i++) {
+    const 자리 = 칸 * (i + 1);
+    그림.beginPath();
+    그림.moveTo(칸, 자리); 그림.lineTo(폭 - 칸, 자리);
+    그림.moveTo(자리, 칸); 그림.lineTo(자리, 폭 - 칸);
+    그림.stroke();
+    그림.fillStyle = "rgba(74,55,34,.75)";
+    그림.fillText(글자표[i], 자리, 칸 * 0.45);
+    그림.fillText(String(크기 - i), 칸 * 0.45, 자리);
+  }
+
+  화점자리(크기).forEach(([r, c]) => {
+    그림.beginPath();
+    그림.fillStyle = "rgba(74,55,34,.9)";
+    그림.arc(칸 * (c + 1), 칸 * (r + 1), Math.max(2, 칸 * 0.09), 0, 7);
+    그림.fill();
+  });
+
+  if (!상태) return;
+  const 반지름 = 칸 * 0.46;
+  for (let i = 0; i < 상태.돌.length; i++) {
+    const 돌 = 상태.돌[i];
+    if (!돌) continue;
+    돌그리기(칸 * ((i % 크기) + 1), 칸 * (Math.floor(i / 크기) + 1), 반지름, 돌 === 1);
+  }
+
+  if (상태.마지막수) {
+    const [r, c] = 상태.마지막수;
+    그림.beginPath();
+    그림.strokeStyle = 상태.돌[r * 크기 + c] === 1 ? "#f0e6d2" : "#2a2018";
+    그림.lineWidth = 2;
+    그림.arc(칸 * (c + 1), 칸 * (r + 1), 반지름 * 0.45, 0, 7);
+    그림.stroke();
+  }
+
+  후보수.slice(0, 5).forEach((후보, 번호) => {
+    const 점 = 좌표풀기(후보.수);
+    if (!점) return;
+    그림.beginPath();
+    그림.fillStyle = 번호 === 0 ? "rgba(60,140,90,.55)" : "rgba(60,110,160,.32)";
+    그림.arc(칸 * (점[1] + 1), 칸 * (점[0] + 1), 반지름 * 0.82, 0, 7);
+    그림.fill();
+    그림.fillStyle = "#fff";
+    그림.font = `bold ${Math.max(9, 칸 * 0.3)}px sans-serif`;
+    그림.fillText(Math.round((후보.승률 || 0) * 100), 칸 * (점[1] + 1), 칸 * (점[0] + 1));
+  });
+}
+
+function 돌그리기(x, y, 반지름, 검정) {
+  그림.beginPath();
+  그림.arc(x + 1, y + 2, 반지름, 0, 7);
+  그림.fillStyle = "rgba(0,0,0,.28)";
+  그림.fill();
+
+  const 빛 = 그림.createRadialGradient(
+    x - 반지름 * .35, y - 반지름 * .4, 반지름 * .1, x, y, 반지름);
+  if (검정) { 빛.addColorStop(0, "#585048"); 빛.addColorStop(1, "#0d0b09"); }
+  else { 빛.addColorStop(0, "#ffffff"); 빛.addColorStop(1, "#d8d1c2"); }
+  그림.beginPath();
+  그림.arc(x, y, 반지름, 0, 7);
+  그림.fillStyle = 빛;
+  그림.fill();
+}
+
+function 좌표풀기(글) {
+  if (!글 || String(글).toLowerCase() === "pass") return null;
+  const c = 글자표.indexOf(String(글)[0].toUpperCase());
+  const 번 = parseInt(String(글).slice(1), 10);
+  if (c < 0 || isNaN(번)) return null;
+  return [크기 - 번, c];
+}
+
+/* ------------------------------------------------------------------ 화면 */
+function 알림(글) { document.getElementById("알림").textContent = 글; }
+
+function 갱신() {
+  if (!상태) return;
+  크기 = 상태.크기;
+  const 내색 = 상태.사람 === 1 ? "흑" : "백";
+  document.getElementById("수순").textContent = 상태.수순;
+  document.getElementById("덤").textContent = `${상태.덤} · ${상태.규칙}식`;
+  document.getElementById("흑정보").textContent =
+    `${상태.사람 === 1 ? "나" : 상태.엔진이름} · ${상태.따낸돌.흑}점`;
+  document.getElementById("백정보").textContent =
+    `${상태.사람 === 2 ? "나" : 상태.엔진이름} · ${상태.따낸돌.백}점`;
+
+  알림(상태.끝남 ? `대국 종료 — ${상태.결과 || ""}`
+                : (상태.차례 === 상태.사람 ? `내 차례 (${내색})`
+                                          : `${상태.엔진이름} 차례`));
+
+  const 승률 = 후보수.length ? 후보수[0].승률 : null;
+  const 흑승률 = 승률 == null ? null : (상태.차례 === 1 ? 승률 : 1 - 승률);
+  document.getElementById("막대").firstElementChild.style.width =
+    ((흑승률 == null ? 0.5 : 흑승률) * 100) + "%";
+
+  const 분석칸 = document.getElementById("분석칸");
+  분석칸.hidden = !후보수.length;
+  if (후보수.length) {
+    document.getElementById("승률").textContent = (흑승률 * 100).toFixed(1) + "%";
+    document.getElementById("후보").innerHTML = 후보수.map(후 => `
+      <tr><td>${후.수}</td>
+      <td>${후.승률 == null ? "–" : (후.승률 * 100).toFixed(1) + "%"}</td>
+      <td>${후.예상집 == null ? "–" : 후.예상집.toFixed(1)}</td>
+      <td>${후.방문수}</td></tr>`).join("");
+  }
+
+  const 현황 = 상태.엔진현황 || {};
+  const 칸 = document.getElementById("엔진칸");
+  if (엔진 && 엔진.로컬) {
+    칸.innerHTML = `이 페이지는 <b>브라우저 안에서만</b> 돌아갑니다.
+      규칙과 봇이 전부 자바스크립트로 들어 있어 서버가 필요 없습니다.<br><br>
+      상대는 <b>내장 봇</b>이라 아주 약합니다. KataGo 와 두시려면
+      <a href="https://github.com/musicits/go-baduk">내려받아</a>
+      <code>python baduk.py</code> 로 실행하세요.
+      KataGo 는 네이티브 프로그램이라 브라우저에서는 못 돕니다.`;
+  } else {
+    칸.innerHTML = (현황.KataGo && 현황.KataGo.설치됨
+      ? `KataGo 사용 중<br>${현황.KataGo.신경망 || "기본 신경망"}`
+      : `KataGo 가 없어 <b>내장 봇</b>으로 둡니다 (아주 약함).<br>
+         README 의 KataGo 설치 안내를 보세요.`)
+      + `<br><br>절예(Fine Art)는 공개 배포판이 없어 붙일 수 없습니다.`;
+  }
+}
+
+/* ------------------------------------------------------------------ 조작 */
+판.addEventListener("click", 사건 => {
+  if (!상태 || 상태.끝남 || 생각중) return;
+  if (상태.사람 !== null && 상태.차례 !== 상태.사람) return;
+  const 상자 = 판.getBoundingClientRect();
+  const 배율 = 판.width / 상자.width, 칸 = 여백();
+  const 열 = Math.round((사건.clientX - 상자.left) * 배율 / 칸) - 1;
+  const 행 = Math.round((사건.clientY - 상자.top) * 배율 / 칸) - 1;
+  if (행 < 0 || 열 < 0 || 행 >= 크기 || 열 >= 크기) return;
+  후보수 = [];
+  실행(() => 엔진.두기(행, 열));
+});
+
+document.getElementById("패스").onclick = () => 실행(() => 엔진.패스());
+document.getElementById("무르기").onclick = () => 실행(() => 엔진.무르기());
+document.getElementById("분석").onclick = () => 실행(async () => {
+  const 결과 = await 엔진.분석();
+  if (엔진.로컬) 알림("내장 봇은 승률을 내지 못합니다 (KataGo 필요)");
+  return 결과;
+});
+document.getElementById("돌던지기").onclick = () => {
+  if (confirm("돌을 던집니다. 계속할까요?")) 실행(() => 엔진.돌던지기());
+};
+document.getElementById("계가").onclick = () => 실행(async () => {
+  const 결과 = await 엔진.계가();
+  const 집 = 결과.집계산;
+  setTimeout(() => alert(
+    `${집.규칙}식 계가\n\n흑 ${집.흑}집\n백 ${집.백}집 (덤 ${집.덤})\n\n${집.결과}`), 30);
+  return 결과;
+});
+document.getElementById("기보저장").onclick = () => 엔진.기보저장();
+document.getElementById("기보열기").onclick = () => document.getElementById("파일").click();
+document.getElementById("파일").onchange = 사건 => {
+  const 파일 = 사건.target.files[0];
+  if (!파일) return;
+  const 읽개 = new FileReader();
+  읽개.onload = () => 실행(() => 엔진.불러오기(읽개.result));
+  읽개.readAsText(파일);
+  사건.target.value = "";
+};
+document.getElementById("새대국").onclick = () => {
+  const 값 = id => document.getElementById(id).value;
+  후보수 = [];
+  실행(() => 엔진.새대국({
+    크기: Number(값("크기")), 엔진: 값("엔진"), 사람: 값("내색"),
+    접바둑: Number(값("접바둑")), 규칙: 값("규칙"),
+    생각시간: Number(값("생각시간")),
+  }));
+};
+document.getElementById("크기").onchange = 사건 => {
+  크기 = Number(사건.target.value);
+  상태 = null;
+  그리기();
+};
+
+function 크기맞추기() {
+  const 폭 = Math.max(300, Math.min(680, window.innerWidth - 380, window.innerHeight - 90));
+  판.style.width = 폭 + "px";
+  판.style.height = 폭 + "px";
+}
+window.addEventListener("resize", 크기맞추기);
+크기맞추기();
+그리기();
+
+/* 파이썬 서버가 뒤에 있으면 그쪽을(=KataGo 를) 쓰고, 없으면 브라우저 혼자 돈다.
+   GitHub Pages 같은 정적 호스팅에서는 물어볼 필요가 없으니 건너뛴다. */
+function 서버가있을만한가() {
+  if (location.protocol === "file:") return false;
+  if (location.hostname.endsWith("github.io")) return false;
+  return true;
+}
+
+(async () => {
+  try {
+    if (!서버가있을만한가()) throw new Error("정적 호스팅");
+    const 응답 = await fetch("/api/state", { cache: "no-store" });
+    if (!응답.ok) throw new Error("no server");
+    엔진 = new 서버엔진();
+    상태 = await 응답.json();
+    document.getElementById("크기").value = String(상태.크기);
+  } catch (e) {
+    엔진 = new 로컬엔진();
+    상태 = await 엔진.상태();
+    document.getElementById("엔진줄").hidden = true;   // 로컬에선 고를 게 없다
+    document.getElementById("시간줄").hidden = true;
+  }
+  후보수 = 상태.분석 || [];
+  그리기();
+  갱신();
+})();
+</script>
+</body>
+</html>

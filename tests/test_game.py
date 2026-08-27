@@ -136,9 +136,9 @@ def test_계가():
     assert "결과" in 점수
 
 
-def test_일본식으로도_계가한다():
-    game = 새판(rules="일본")
-    assert game.score(dead=[])["규칙"] == "일본"
+def test_한국식으로도_계가한다():
+    game = 새판(rules="한국")
+    assert game.score(dead=[])["규칙"] == "한국"
 
 
 def test_분석을_못_하는_봇은_빈_목록():

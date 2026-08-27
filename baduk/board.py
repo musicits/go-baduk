@@ -281,7 +281,7 @@ class Board:
         """집을 세어 결과를 돌려준다.
 
         :param dead: 죽은 돌로 칠 자리 목록.
-        :param rules: ``"중국"``(계가: 돌+집) 또는 ``"일본"``(집+사석).
+        :param rules: ``"중국"``(돌+집) 또는 ``"한국"``(집+사석).
         :return: 점수 딕셔너리. ``"차이"`` 가 양수면 흑 우세.
         """
         counts = self.territory(dead)
@@ -295,11 +295,13 @@ class Board:
                     alive[stone] += 1
             black = counts[BLACK] + alive[BLACK]
             white = counts[WHITE] + alive[WHITE] + self.komi
-        elif rules == "일본":
+        elif rules == "한국":
             black = counts[BLACK] + self.captures[BLACK] + dead_by[WHITE]
             white = counts[WHITE] + self.captures[WHITE] + dead_by[BLACK] + self.komi
         else:
-            raise ValueError(f"모르는 규칙입니다: {rules}")
+            raise ValueError(
+                f"모르는 규칙입니다: {rules} (중국·한국 중에서 고르세요)"
+            )
 
         diff = black - white
         if diff > 0:

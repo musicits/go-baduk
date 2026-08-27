@@ -48,7 +48,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--내색", default="흑", choices=["흑", "백"],
                         help="내가 잡을 색 (기본 흑)")
     parser.add_argument("--덤", type=float, default=None, help="덤 (기본 6.5)")
-    parser.add_argument("--규칙", default="중국", choices=["중국", "일본"],
+    parser.add_argument("--규칙", default="중국",
+                        choices=["중국", "한국"],
                         help="계가 방식 (기본 중국)")
     parser.add_argument("--생각시간", type=float, default=5.0, metavar="초",
                         help="엔진이 한 수에 쓸 시간 (기본 5초)")

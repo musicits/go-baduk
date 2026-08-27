@@ -179,13 +179,13 @@ def test_집계산_중국식():
     assert 점수["공배"] == 5
 
 
-def test_집계산_일본식():
+def test_집계산_한국식():
     board = Board(5, komi=0.5)
     #  흑이 B 줄, 백이 D 줄을 차지하면
     #  A 줄은 흑 집, E 줄은 백 집, C 줄은 양쪽이 맞닿아 공배다.
     place(board, [(r, 1) for r in range(5)], BLACK)
     place(board, [(r, 3) for r in range(5)], WHITE)
-    점수 = board.score(rules="일본")
+    점수 = board.score(rules="한국")
     assert 점수["흑"] == 5
     assert 점수["백"] == 5.5
     assert 점수["공배"] == 5
@@ -202,7 +202,7 @@ def test_죽은_돌을_빼고_센다():
 
 def test_모르는_규칙은_거절한다():
     with pytest.raises(ValueError):
-        Board(9).score(rules="한국")
+        Board(9).score(rules="대만")
 
 
 def test_접바둑_치석():
@@ -265,3 +265,21 @@ def test_글자판_그리기():
     글 = board.ascii()
     assert "●" in 글
     assert 글.splitlines()[0].startswith("   A B C")
+
+
+def test_한국식은_사석을_더해_센다():
+    """한국식은 집에 따낸 돌과 사석을 더한다."""
+    board = Board(5, komi=0.5)
+    place(board, [(r, c) for r in range(5) for c in (0, 1, 2, 3)], BLACK)
+    place(board, [(0, 4)], WHITE)
+    점수 = board.score(dead=[(0, 4)], rules="한국")
+    assert 점수["규칙"] == "한국"
+    # E 줄 5집 + 죽은 백돌 1점 = 6. 중국식이면 사석을 세지 않아 다르게 나온다.
+    assert 점수["흑"] == 6
+    assert 점수["백"] == 0.5
+    assert board.score(dead=[(0, 4)], rules="중국")["흑"] == 25
+
+
+def test_규칙_이름이_틀리면_고를_것을_알려준다():
+    with pytest.raises(ValueError, match="중국·한국"):
+        Board(9).score(rules="대만")

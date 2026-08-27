@@ -22,7 +22,9 @@ from .engine import engine_status
 from .game import Game, new_game
 from .sgf import from_sgf
 
-WEB_DIR = Path(__file__).parent / "web"
+# 화면 파일은 docs/ 한 곳에만 둔다. GitHub Pages 가 그 폴더를 그대로 올리므로
+# 로컬 서버와 웹 페이지가 같은 파일을 쓴다.
+WEB_DIR = Path(__file__).resolve().parent.parent / "docs"
 
 
 class GameSession:
