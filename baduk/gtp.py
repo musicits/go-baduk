@@ -74,6 +74,8 @@ class GtpEngine:
                 stderr=subprocess.PIPE,
                 cwd=self.cwd,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 bufsize=1,
             )
         except OSError as exc:
@@ -138,7 +140,7 @@ class GtpEngine:
                 self.process.stdin.write(f"{tag} {command}\n")
                 self.process.stdin.flush()
             except OSError as exc:
-                raise GtpError(f"명령을 보내지 못했습니다: {exc}") from exc
+                raise GtpError(self._death_note(command, exc)) from exc
             return self._read_response(tag, timeout or self.timeout, command)
 
     def _read_response(self, tag: int, timeout: float, command: str) -> str:
@@ -182,6 +184,24 @@ class GtpEngine:
         if not head.startswith("="):
             raise GtpError(f"{self.name} 응답이 이상합니다: {head}")
         return body
+
+    def _death_note(self, command: str, exc: Exception) -> str:
+        """엔진이 죽었을 때, 엔진이 남긴 말을 붙여서 알려준다."""
+        import time
+        time.sleep(0.3)                     # stderr 를 마저 받을 틈을 준다
+        code = self.process.poll() if self.process else None
+        줄들 = [f"{self.name} 에 명령을 보내지 못했습니다: {command}"]
+        if code is not None:
+            줄들.append(f"엔진이 이미 종료되었습니다 (종료 코드 {code}).")
+        else:
+            줄들.append(f"({exc})")
+        if self.stderr_tail:
+            줄들.append("")
+            줄들.append("엔진이 남긴 메시지:")
+            줄들 += [f"  {줄}" for 줄 in self.stderr_tail[-12:]]
+        else:
+            줄들.append("엔진이 아무 메시지도 남기지 않았습니다.")
+        return "\n".join(줄들)
 
     def _drain_stderr(self):
         try:

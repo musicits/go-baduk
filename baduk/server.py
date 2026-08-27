@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import json
+import sys
 import threading
 import webbrowser
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -34,12 +35,24 @@ class GameSession:
         self.game = None
         self.lock = threading.Lock()
         self.options = {}
+        self.last_error = None
 
     def start(self, **options):
-        """새 대국을 시작한다."""
+        """새 대국을 시작한다.
+
+        엔진이 말썽이면 내장 봇으로 물러난다. 화면까지 죽으면 안 된다.
+        """
         self.close()
         self.options = options
-        self.game = new_game(**options)
+        self.last_error = None
+        try:
+            self.game = new_game(**options)
+        except Exception as exc:
+            self.last_error = f"{type(exc).__name__}: {exc}"
+            print(f"\n[엔진 오류] {exc}\n", file=sys.stderr)
+            물러난 = dict(options)
+            물러난["engine"] = "내장"
+            self.game = new_game(**물러난)
         return self.game
 
     def ensure(self) -> Game:
@@ -210,6 +223,7 @@ class Handler(BaseHTTPRequestHandler):
         game = SESSION.ensure()
         state = game.state()
         state["엔진현황"] = engine_status()
+        state["엔진오류"] = SESSION.last_error
         return state
 
     # ------------------------------------------------------------------

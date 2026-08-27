@@ -343,7 +343,30 @@ def load_engine(spec: str = "auto", think_time: float = 5.0,
         return BuiltinBot(seed=seed)
 
     if spec in ("auto", "katago"):
-        command = katago_command(visits=visits)
+        paths = find_katago()
+        if paths and not paths.get("신경망"):
+            메시지 = (
+                "KataGo 실행 파일은 찾았지만 신경망 파일(.bin.gz)이 없습니다.\n"
+                f"  실행 파일: {paths['실행']}\n"
+                "  https://katagotraining.org/networks/ 에서 .bin.gz 를 하나 받아\n"
+                f"  {Path(paths['실행']).parent} 폴더에 넣어주세요."
+            )
+            if spec == "katago":
+                raise EngineNotFound(메시지)
+            _warn(메시지 + "\n  일단 내장 봇으로 둡니다.")
+            return BuiltinBot(seed=seed)
+        if paths and not paths.get("설정"):
+            메시지 = (
+                "KataGo 설정 파일(.cfg)이 없습니다.\n"
+                f"  {Path(paths['실행']).parent} 폴더에 gtp 설정 파일이 있어야 합니다.\n"
+                "  KataGo 압축을 풀 때 같이 들어 있는 default_gtp.cfg 를 넣어주세요."
+            )
+            if spec == "katago":
+                raise EngineNotFound(메시지)
+            _warn(메시지 + "\n  일단 내장 봇으로 둡니다.")
+            return BuiltinBot(seed=seed)
+
+        command = katago_command(paths=paths, visits=visits)
         if command:
             engine = GtpEngine(command, name="KataGo", timeout=60.0)
             try:
