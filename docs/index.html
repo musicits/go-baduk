@@ -92,7 +92,7 @@
   <details class="카드" id="설정칸" open>
     <summary>대국 설정</summary>
     <label>판 크기
-      <select id="크기"><option>19</option><option>13</option><option selected>9</option></select>
+      <select id="크기"><option selected>9</option><option>13</option><option>19</option></select>
     </label>
     <label id="엔진줄">상대
       <select id="엔진">
@@ -166,7 +166,14 @@ class 서버엔진 {
   패스() { return this._보내기("/api/pass", {}); }
   무르기() { return this._보내기("/api/undo", { 수: 2 }); }
   돌던지기() { return this._보내기("/api/resign", {}); }
-  분석() { return this._보내기("/api/analyze", {}); }
+  async 분석() {
+    if (후보수.length) {            // 보이는 중이면 끈다
+      const 상 = await this._보내기("/api/state");
+      상.분석 = [];
+      return 상;
+    }
+    return this._보내기("/api/analyze", {});
+  }
   계가() { return this._보내기("/api/score", {}); }
   불러오기(sgf) { return this._보내기("/api/load", { sgf }); }
   기보저장() { location.href = "/api/sgf"; }
@@ -244,10 +251,8 @@ class 로컬엔진 {
     if (수 !== null && !this.판.합법인가(수, 색)) 수 = null;
     this.판.두기(수, 색);
 
-    this.분석결과 = (답.후보들 || []).map(후 => ({
-      수: this.판.좌표(this.판.자리(후.수)),
-      승률: 후.승률, 예상집: null, 방문수: 후.방문수, 예상진행: [],
-    }));
+    // 봇이 둔 뒤에는 추천수를 지운다. 보고 싶으면 "분석" 을 누르면 된다.
+    this.분석결과 = [];
     this._끝검사();
   }
 
@@ -269,6 +274,7 @@ class 로컬엔진 {
 
   async 패스() {
     if (this.끝남) return this._상태();
+    this.분석결과 = [];
     this.판.두기(null, this.판.차례);
     this._끝검사();
     if (!this.끝남) await this._봇수();
@@ -288,8 +294,10 @@ class 로컬엔진 {
     return this._상태();
   }
 
-  /* 지금 국면을 탐색해서 추천수를 보여준다 (두지는 않는다). */
+  /* 지금 국면을 탐색해서 추천수를 보여준다 (두지는 않는다).
+     이미 보이는 중이면 끈다. */
   async 분석() {
+    if (this.분석결과.length) { this.분석결과 = []; return this._상태(); }
     if (this.끝남) return this._상태();
     const 답 = await this._생각(this.생각시간);
     this.분석결과 = (답.후보들 || []).map(후 => ({
@@ -503,10 +511,11 @@ function 갱신() {
   const 칸 = document.getElementById("엔진칸");
   if (엔진 && 엔진.로컬) {
     칸.innerHTML = (현황.워커
-      ? `상대는 <b>탐색 봇</b>입니다. 수를 실제로 읽어서 둡니다
-         (몬테카를로 탐색). <b>9로·13로</b>에서 제 실력이 나오고,
-         19로는 판이 넓어 같은 시간에 훨씬 얕게 봅니다.<br>
-         약하면 "한 수 생각" 을 늘려 보세요.<br><br>`
+      ? `상대는 <b>탐색 봇</b>입니다 (몬테카를로 탐색).
+         <b>9로에서만 쓸 만합니다.</b> 3초에 후보 한 자리를 400번씩 봅니다.<br>
+         <b>19로는 20번 남짓이라 사실상 아무렇게나 둡니다.</b>
+         신경망 없이 규칙만으로 하는 탐색의 한계입니다.
+         19로를 두시려면 KataGo 를 붙이세요.<br><br>`
       : `워커를 쓸 수 없어 약한 봇으로 둡니다.
          (파일을 직접 연 경우입니다. 웹 주소로 여세요.)<br><br>`)
       + `이 페이지는 브라우저 안에서만 돌아갑니다. 서버가 필요 없습니다.
